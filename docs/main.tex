@@ -1,0 +1,97 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[english,hungarian]{babel}
+\selectlanguage{hungarian}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{courier}
+\usepackage{t1enc}
+\usepackage{fullpage}
+\usepackage{graphicx}
+\usepackage[a4paper]{geometry}
+\usepackage{booktabs}
+\usepackage{setspace}
+\usepackage{placeins}
+\usepackage[hidelinks]{hyperref}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{listings}
+\usepackage{stfloats}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{attachfile}
+\usepackage{multicol}
+\usepackage[euler]{textgreek}
+\geometry{
+    a4paper,
+    total={170mm,257mm},
+    left=20mm,
+    top=20mm,
+    }
+
+\fnbelowfloat
+
+\lstdefinestyle{overleaf_mod}{
+    backgroundcolor=\color{white},   
+    commentstyle=\color{gray},
+    keywordstyle=\color{purple},
+    numberstyle=\tiny\ttfamily\color{darkgray},
+    stringstyle=\color{teal},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=single,
+    xleftmargin=.05\textwidth,
+    xrightmargin=.05\textwidth
+}
+\lstset{style=overleaf_mod}
+
+\renewcommand{\lstlistingname}{Kódrészlet}
+
+\let\Oldsection\section
+\renewcommand{\section}{\FloatBarrier\Oldsection}
+
+\let\Oldsubsection\subsection
+\renewcommand{\subsection}{\FloatBarrier\Oldsubsection}
+
+\let\Oldsubsubsection\subsubsection
+\renewcommand{\subsubsection}{\FloatBarrier\Oldsubsubsection}
+
+\author{XXXX \\ Konzulens: YYYY}
+\title{\textbf{My Topic}\large}
+\date{\today}
+
+\begin{document}
+\begin{doublespace}
+
+\maketitle
+\thispagestyle{empty}
+\centering
+\vspace*{5cm}
+    BME-VIK \\
+    Önálló laboratórium 2.
+\end{doublespace}
+
+\vspace*{2cm}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=4cm]{img/bme.png}
+\end{figure*}
+
+\clearpage
+\tableofcontents
+\clearpage
+
+\part*{Bevezető}
+TODO..
+
+\end{document}

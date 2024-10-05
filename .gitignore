@@ -1,0 +1,9 @@
+# Ignore LaTeX source and generated files
+docs/img/
+docs/src/
+
+docs/**/*.aux
+docs/**/*.log
+docs/**/*.out
+docs/**/*.gz
+docs/**/*.toc
