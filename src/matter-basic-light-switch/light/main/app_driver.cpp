@@ -21,9 +21,7 @@ using namespace esp_matter;
 static const char *TAG = "app_driver";
 extern uint16_t light_endpoint_id;
 
-/* Do any conversions/remapping for the actual value here */
-static esp_err_t app_driver_light_set_power(led_indicator_handle_t handle, esp_matter_attr_val_t *val)
-{
+static esp_err_t app_driver_light_set_power(led_indicator_handle_t handle, esp_matter_attr_val_t *val) {
 #if CONFIG_BSP_LEDS_NUM > 0
     esp_err_t err = ESP_OK;
     if (val->val.b) {
@@ -31,6 +29,7 @@ static esp_err_t app_driver_light_set_power(led_indicator_handle_t handle, esp_m
     } else {
         err = led_indicator_start(handle, BSP_LED_OFF);
     }
+
     return err;
 #else
     ESP_LOGI(TAG, "LED set power: %d", val->val.b);
@@ -38,58 +37,59 @@ static esp_err_t app_driver_light_set_power(led_indicator_handle_t handle, esp_m
 #endif
 }
 
-static esp_err_t app_driver_light_set_brightness(led_indicator_handle_t handle, esp_matter_attr_val_t *val)
-{
+static esp_err_t app_driver_light_set_brightness(led_indicator_handle_t handle, esp_matter_attr_val_t *val) {
     int value = REMAP_TO_RANGE(val->val.u8, MATTER_BRIGHTNESS, STANDARD_BRIGHTNESS);
 #if CONFIG_BSP_LEDS_NUM > 0
     return led_indicator_set_brightness(handle, value);
 #else
     ESP_LOGI(TAG, "LED set brightness: %d", value);
+
     return ESP_OK;
 #endif
 }
 
-static esp_err_t app_driver_light_set_hue(led_indicator_handle_t handle, esp_matter_attr_val_t *val)
-{
+static esp_err_t app_driver_light_set_hue(led_indicator_handle_t handle, esp_matter_attr_val_t *val) {
     int value = REMAP_TO_RANGE(val->val.u8, MATTER_HUE, STANDARD_HUE);
 #if CONFIG_BSP_LEDS_NUM > 0
     led_indicator_ihsv_t hsv;
     hsv.value = led_indicator_get_hsv(handle);
     hsv.h = value;
+
     return led_indicator_set_hsv(handle, hsv.value);
 #else
     ESP_LOGI(TAG, "LED set hue: %d", value);
+
     return ESP_OK;
 #endif
 }
 
-static esp_err_t app_driver_light_set_saturation(led_indicator_handle_t handle, esp_matter_attr_val_t *val)
-{
+static esp_err_t app_driver_light_set_saturation(led_indicator_handle_t handle, esp_matter_attr_val_t *val) {
     int value = REMAP_TO_RANGE(val->val.u8, MATTER_SATURATION, STANDARD_SATURATION);
 #if CONFIG_BSP_LEDS_NUM > 0
     led_indicator_ihsv_t hsv;
     hsv.value = led_indicator_get_hsv(handle);
     hsv.s = value;
+
     return led_indicator_set_hsv(handle, hsv.value);
 #else
     ESP_LOGI(TAG, "LED set saturation: %d", value);
+
     return ESP_OK;
 #endif
 }
 
-static esp_err_t app_driver_light_set_temperature(led_indicator_handle_t handle, esp_matter_attr_val_t *val)
-{
+static esp_err_t app_driver_light_set_temperature(led_indicator_handle_t handle, esp_matter_attr_val_t *val){
     uint32_t value = REMAP_TO_RANGE_INVERSE(val->val.u16, STANDARD_TEMPERATURE_FACTOR);
 #if CONFIG_BSP_LEDS_NUM > 0
     return led_indicator_set_color_temperature(handle, value);
 #else
-    ESP_LOGI(TAG, "LED set temperature: %ld", value);
+    ESP_LOGI(TAG, "LED set temperature: %ld", value);    
+
     return ESP_OK;
 #endif
 }
 
-static void app_driver_button_toggle_cb(void *arg, void *data)
-{
+static void app_driver_button_toggle_cb(void *arg, void *data) {
     ESP_LOGI(TAG, "Toggle button pressed");
     uint16_t endpoint_id = light_endpoint_id;
     uint32_t cluster_id = OnOff::Id;
@@ -103,9 +103,12 @@ static void app_driver_button_toggle_cb(void *arg, void *data)
     attribute::update(endpoint_id, cluster_id, attribute_id, &val);
 }
 
-esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_t endpoint_id, uint32_t cluster_id,
-                                      uint32_t attribute_id, esp_matter_attr_val_t *val)
-{
+esp_err_t app_driver_attribute_update(
+    app_driver_handle_t driver_handle,
+    uint16_t endpoint_id,
+    uint32_t cluster_id,
+    uint32_t attribute_id, esp_matter_attr_val_t *val
+    ) {
     esp_err_t err = ESP_OK;
     if (endpoint_id == light_endpoint_id) {
         led_indicator_handle_t handle = (led_indicator_handle_t)driver_handle;
@@ -127,11 +130,11 @@ esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_
             }
         }
     }
+
     return err;
 }
 
-esp_err_t app_driver_light_set_defaults(uint16_t endpoint_id)
-{
+esp_err_t app_driver_light_set_defaults(uint16_t endpoint_id) {
     esp_err_t err = ESP_OK;
     void *priv_data = endpoint::get_priv_data(endpoint_id);
     led_indicator_handle_t handle = (led_indicator_handle_t)priv_data;
@@ -171,8 +174,7 @@ esp_err_t app_driver_light_set_defaults(uint16_t endpoint_id)
     return err;
 }
 
-app_driver_handle_t app_driver_light_init()
-{
+app_driver_handle_t app_driver_light_init() {
 #if CONFIG_BSP_LEDS_NUM > 0
     /* Initialize led */
     led_indicator_handle_t leds[CONFIG_BSP_LEDS_NUM];
@@ -185,8 +187,7 @@ app_driver_handle_t app_driver_light_init()
 #endif
 }
 
-app_driver_handle_t app_driver_button_init()
-{
+app_driver_handle_t app_driver_button_init() {
     /* Initialize button */
     button_handle_t btns[BSP_BUTTON_NUM];
     ESP_ERROR_CHECK(bsp_iot_button_create(btns, NULL, BSP_BUTTON_NUM));
