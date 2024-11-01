@@ -1,0 +1,17 @@
+## Docs
+### Ignore LaTeX source and generated files except the **main.pdf**
+docs/src
+docs/img
+
+docs/*.tex
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.gz
+docs/*.toc
+docs/*.bbl
+
+!docs/*.pdf
+
+##
+###
