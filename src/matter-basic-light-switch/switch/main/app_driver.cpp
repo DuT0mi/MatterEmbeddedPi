@@ -35,8 +35,7 @@ extern uint16_t switch_endpoint_id;
 
 #if CONFIG_ENABLE_CHIP_SHELL
 static char console_buffer[101] = {0};
-static esp_err_t app_driver_bound_console_handler(int argc, char **argv)
-{
+static esp_err_t app_driver_bound_console_handler(int argc, char **argv) {
     if (argc == 1 && strncmp(argv[0], "help", sizeof("help")) == 0) {
         printf("Bound commands:\n"
                "\thelp: Print help\n"
@@ -72,8 +71,7 @@ static esp_err_t app_driver_bound_console_handler(int argc, char **argv)
     return ESP_OK;
 }
 
-static esp_err_t app_driver_client_console_handler(int argc, char **argv)
-{
+static esp_err_t app_driver_client_console_handler(int argc, char **argv) {
     if (argc == 1 && strncmp(argv[0], "help", sizeof("help")) == 0) {
         printf("Client commands:\n"
                "\thelp: Print help\n"
@@ -142,8 +140,7 @@ static esp_err_t app_driver_client_console_handler(int argc, char **argv)
     return ESP_OK;
 }
 
-static void app_driver_register_commands()
-{
+static void app_driver_register_commands() {
     /* Add console command for bound devices */
     static const esp_matter::console::command_t bound_command = {
         .name = "bound",
@@ -166,20 +163,24 @@ static void app_driver_register_commands()
 }
 #endif // CONFIG_ENABLE_CHIP_SHELL
 
-static void send_command_success_callback(void *context, const ConcreteCommandPath &command_path,
-                                          const chip::app::StatusIB &status, TLVReader *response_data)
-{
+static void send_command_success_callback(
+    void *context,
+    const ConcreteCommandPath &command_path,
+    const chip::app::StatusIB &status,
+    TLVReader *response_data
+    ) {
     ESP_LOGI(TAG, "Send command success");
 }
 
-static void send_command_failure_callback(void *context, CHIP_ERROR error)
-{
+static void send_command_failure_callback(void *context, CHIP_ERROR error) {
     ESP_LOGI(TAG, "Send command failure: err :%" CHIP_ERROR_FORMAT, error.Format());
 }
 
-void app_driver_client_invoke_command_callback(client::peer_device_t *peer_device, client::request_handle_t *req_handle,
-                                               void *priv_data)
-{
+void app_driver_client_invoke_command_callback(
+    client::peer_device_t *peer_device,
+    client::request_handle_t *req_handle,
+    void *priv_data
+    ) {
     if (req_handle->type != esp_matter::client::INVOKE_CMD) {
         return;
     }
@@ -203,19 +204,27 @@ void app_driver_client_invoke_command_callback(client::peer_device_t *peer_devic
         ESP_LOGE(TAG, "Unsupported cluster");
         return;
     }
-    client::interaction::invoke::send_request(NULL, peer_device, req_handle->command_path, command_data_str,
-                                              send_command_success_callback, send_command_failure_callback,
-                                              chip::NullOptional);
+    client::interaction::invoke::send_request(
+        NULL,
+        peer_device,
+        req_handle->command_path,
+        command_data_str,
+        send_command_success_callback,
+        send_command_failure_callback,
+        chip::NullOptional
+        );
 }
 
-void app_driver_client_group_invoke_command_callback(uint8_t fabric_index, client::request_handle_t *req_handle,
-                                                     void *priv_data)
-{
+void app_driver_client_group_invoke_command_callback(
+    uint8_t fabric_index,
+    client::request_handle_t *req_handle,
+    void *priv_data
+    ) {
     if (req_handle->type != esp_matter::client::INVOKE_CMD) {
         return;
     }
     char command_data_str[32];
-    // on_off light switch should support on_off cluster and identify cluster commands sending.
+
     if (req_handle->command_path.mClusterId == OnOff::Id) {
         strcpy(command_data_str, "{}");
     } else if (req_handle->command_path.mClusterId == Identify::Id) {
@@ -237,8 +246,7 @@ void app_driver_client_group_invoke_command_callback(uint8_t fabric_index, clien
     client::interaction::invoke::send_group_request(fabric_index, req_handle->command_path, command_data_str);
 }
 
-static void app_driver_button_toggle_cb(void *arg, void *data)
-{
+static void app_driver_button_toggle_cb(void *arg, void *data) {
     ESP_LOGI(TAG, "Toggle button pressed");
     client::request_handle_t req_handle;
     req_handle.type = esp_matter::client::INVOKE_CMD;
@@ -250,8 +258,7 @@ static void app_driver_button_toggle_cb(void *arg, void *data)
     lock::chip_stack_unlock();
 }
 
-app_driver_handle_t app_driver_switch_init()
-{
+app_driver_handle_t app_driver_switch_init() {
     /* Initialize button */
 
     button_handle_t btns[BSP_BUTTON_NUM];

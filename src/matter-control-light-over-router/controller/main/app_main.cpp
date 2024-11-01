@@ -36,8 +36,7 @@ using namespace esp_matter;
 using namespace esp_matter::attribute;
 using namespace esp_matter::endpoint;
 
-static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
-{
+static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg) {
     switch (event->Type) {
     case chip::DeviceLayer::DeviceEventType::PublicEventTypes::kInterfaceIpAddressChanged:
         ESP_LOGI(TAG, "Interface IP Address changed");
@@ -62,8 +61,7 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
     }
 }
 
-extern "C" void app_main()
-{
+extern "C" void app_main() {
     esp_err_t err = ESP_OK;
 
     /* Initialize the ESP NVS layer */

@@ -42,8 +42,7 @@ static const char *s_decryption_key = decryption_key_start;
 static const uint16_t s_decryption_key_len = decryption_key_end - decryption_key_start;
 #endif // CONFIG_ENABLE_ENCRYPTED_OTA
 
-static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
-{
+static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg) {
     switch (event->Type) {
     case chip::DeviceLayer::DeviceEventType::kInterfaceIpAddressChanged:
         ESP_LOGI(TAG, "Interface IP Address changed");
@@ -117,25 +116,28 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
     }
 }
 
-// This callback is invoked when clients interact with the Identify Cluster.
-// In the callback implementation, an endpoint can identify itself. (e.g., by flashing an LED or light).
-static esp_err_t app_identification_cb(identification::callback_type_t type, uint16_t endpoint_id, uint8_t effect_id,
-                                       uint8_t effect_variant, void *priv_data)
-{
+static esp_err_t app_identification_cb(
+    identification::callback_type_t type,
+    uint16_t endpoint_id,
+    uint8_t effect_id,
+    uint8_t effect_variant,
+    void *priv_data
+    ) {
     ESP_LOGI(TAG, "Identification callback: type: %u, effect: %u, variant: %u", type, effect_id, effect_variant);
+
     return ESP_OK;
 }
 
-// This callback is called for every attribute update. The callback implementation shall
-// handle the desired attributes and return an appropriate error code. If the attribute
-// is not of your interest, please do not return an error code and strictly return ESP_OK.
-static esp_err_t app_attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint_id, uint32_t cluster_id,
-                                         uint32_t attribute_id, esp_matter_attr_val_t *val, void *priv_data)
-{
+static esp_err_t app_attribute_update_cb(
+    attribute::callback_type_t type,
+    uint16_t endpoint_id,
+    uint32_t cluster_id,
+    uint32_t attribute_id,
+    esp_matter_attr_val_t *val,
+    void *priv_data ) {
     esp_err_t err = ESP_OK;
 
     if (type == PRE_UPDATE) {
-        /* Driver update */
         app_driver_handle_t driver_handle = (app_driver_handle_t)priv_data;
         err = app_driver_attribute_update(driver_handle, endpoint_id, cluster_id, attribute_id, val);
     }
@@ -143,8 +145,7 @@ static esp_err_t app_attribute_update_cb(attribute::callback_type_t type, uint16
     return err;
 }
 
-extern "C" void app_main()
-{
+extern "C" void app_main() {
     esp_err_t err = ESP_OK;
 
     /* Initialize the ESP NVS layer */
