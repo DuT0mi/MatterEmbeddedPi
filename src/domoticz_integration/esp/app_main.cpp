@@ -1,11 +1,3 @@
-/*
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
 #include <esp_err.h>
 #include <esp_log.h>
 #include <nvs_flash.h>
@@ -24,6 +16,16 @@
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <esp_log.h>
+#include <esp_http_client.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <esp_system.h>
+
 static const char *TAG = "app_main";
 uint16_t light_endpoint_id = 0;
 
@@ -33,6 +35,11 @@ using namespace esp_matter::endpoint;
 using namespace chip::app::Clusters;
 
 constexpr auto k_timeout_seconds = 300;
+
+constexpr char* host = "X"; // Your ip address <--> ifconfig
+constexpr int port = 8080; // Domoticz port number
+constexpr auto second = 1000;
+constexpr int esp32c6_0_idx = 1; // Corresponding idx under "Devices" on the web gui
 
 #if CONFIG_ENABLE_ENCRYPTED_OTA
 extern const char decryption_key_start[] asm("_binary_esp_image_encryption_key_pem_start");
@@ -142,20 +149,56 @@ static esp_err_t app_attribute_update_cb(
     return err;
 }
 
+int get_random_temperature(int lower = 10, int upper = 20) {
+    return (rand() % (upper - lower + 1)) + lower;
+}
+
+void send_to_domoticz_task(void *pvParameters) {
+    esp_err_t err;
+    char url[256];
+
+    while (1) {
+        int temperature = get_random_temperature();
+        snprintf(url, sizeof(url), "http://%s:%d/json.htm?type=command&param=udevice&idx=%d&nvalue=0&svalue=%d", 
+                 host, port, esp32c6_0_idx, temperature);
+        
+        ESP_LOGI(TAG, "Sending temperature: %d to Domoticz", temperature);
+
+        esp_http_client_config_t config = {
+            .url = url,
+            .method = HTTP_METHOD_GET,
+        };
+        esp_http_client_handle_t client = esp_http_client_init(&config);
+
+        err = esp_http_client_perform(client);
+        if (err == ESP_OK) {
+            int status_code = esp_http_client_get_status_code(client);
+            if (status_code == 200) {
+                ESP_LOGI(TAG, "Data sent successfully to Domoticz");
+            } else {
+                ESP_LOGE(TAG, "Failed to send data, HTTP status code: %d", status_code);
+            }
+        } else {
+            ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        }
+
+        esp_http_client_cleanup(client);
+
+        vTaskDelay(5 * second / portTICK_PERIOD_MS);
+    }
+}
+
 extern "C" void app_main() {
     esp_err_t err = ESP_OK;
 
     nvs_flash_init();
 
-    /* Initialize driver */
     app_driver_handle_t light_handle = app_driver_light_init();
     app_driver_handle_t button_handle = app_driver_button_init();
     app_reset_button_register(button_handle);
 
-    /* Create a Matter node and add the mandatory Root Node device type on endpoint 0 */
     node::config_t node_config;
 
-    // node handle can be used to add/modify other endpoints.
     node_t *node = node::create(&node_config, app_attribute_update_cb, app_identification_cb);
     ABORT_APP_ON_FAILURE(node != nullptr, ESP_LOGE(TAG, "Failed to create Matter node"));
 
@@ -169,14 +212,12 @@ extern "C" void app_main() {
     light_config.color_control.enhanced_color_mode = (uint8_t)ColorControl::ColorMode::kColorTemperature;
     light_config.color_control.color_temperature.startup_color_temperature_mireds = nullptr;
 
-    // endpoint handles can be used to add/modify clusters.
     endpoint_t *endpoint = extended_color_light::create(node, &light_config, ENDPOINT_FLAG_NONE, light_handle);
     ABORT_APP_ON_FAILURE(endpoint != nullptr, ESP_LOGE(TAG, "Failed to create extended color light endpoint"));
 
     light_endpoint_id = endpoint::get_id(endpoint);
     ESP_LOGI(TAG, "Light created with endpoint_id %d", light_endpoint_id);
 
-    /* Mark deferred persistence for some attributes that might be changed rapidly */
     cluster_t *level_control_cluster = cluster::get(endpoint, LevelControl::Id);
     attribute_t *current_level_attribute = attribute::get(level_control_cluster, LevelControl::Attributes::CurrentLevel::Id);
     attribute::set_deferred_persistence(current_level_attribute);
@@ -190,7 +231,6 @@ extern "C" void app_main() {
     attribute::set_deferred_persistence(color_temp_attribute);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-    /* Set OpenThread platform config */
     esp_openthread_platform_config_t config = {
         .radio_config = ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG(),
         .host_config = ESP_OPENTHREAD_DEFAULT_HOST_CONFIG(),
@@ -199,7 +239,6 @@ extern "C" void app_main() {
     set_openthread_platform_config(&config);
 #endif
 
-    /* Matter start */
     err = esp_matter::start(app_event_cb);
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
 
@@ -219,4 +258,6 @@ extern "C" void app_main() {
 #endif
     esp_matter::console::init();
 #endif
+
+    xTaskCreate(send_to_domoticz_task, "send_to_domoticz_task", 4096, NULL, 5, NULL);
 }
