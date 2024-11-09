@@ -78,7 +78,7 @@ static esp_err_t app_driver_light_set_saturation(led_indicator_handle_t handle, 
 #endif
 }
 
-static esp_err_t app_driver_light_set_temperature(led_indicator_handle_t handle, esp_matter_attr_val_t *val) {
+static esp_err_t app_driver_light_set_temperature(led_indicator_handle_t handle, esp_matter_attr_val_t *val){
     uint32_t value = REMAP_TO_RANGE_INVERSE(val->val.u16, STANDARD_TEMPERATURE_FACTOR);
 #if CONFIG_BSP_LEDS_NUM > 0
     return led_indicator_set_color_temperature(handle, value);
