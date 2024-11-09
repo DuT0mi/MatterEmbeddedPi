@@ -12,3 +12,6 @@
 
 #### Apple Home
 <img src="https://github.com/DuT0mi/MatterEmbeddedPi/blob/feature/docs/gif/home-demo.gif" width="200" height="200" />
+
+#### Domoticz
+<img src="https://github.com/DuT0mi/MatterEmbeddedPi/blob/feature/docs/gif/domoticz-demo.gif" width="200" height="200" />
