@@ -79,11 +79,7 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg) {
             {
                 chip::CommissioningWindowManager & commissionMgr = chip::Server::GetInstance().GetCommissioningWindowManager();
                 constexpr auto kTimeoutSeconds = chip::System::Clock::Seconds16(k_timeout_seconds);
-                if (!commissionMgr.IsCommissioningWindowOpen())
-                {
-                    /* After removing last fabric, this example does not remove the Wi-Fi credentials
-                     * and still has IP connectivity so, only advertising on DNS-SD.
-                     */
+                if (!commissionMgr.IsCommissioningWindowOpen()) {
                     CHIP_ERROR err = commissionMgr.OpenBasicCommissioningWindow(kTimeoutSeconds,
                                                     chip::CommissioningWindowAdvertisement::kDnssdOnly);
                     if (err != CHIP_NO_ERROR)
@@ -122,7 +118,7 @@ static esp_err_t app_identification_cb(
     uint8_t effect_id,
     uint8_t effect_variant,
     void *priv_data
-    ){
+    ) {
     ESP_LOGI(TAG, "Identification callback: type: %u, effect: %u, variant: %u", type, effect_id, effect_variant);
 
     return ESP_OK;
@@ -149,7 +145,6 @@ static esp_err_t app_attribute_update_cb(
 extern "C" void app_main() {
     esp_err_t err = ESP_OK;
 
-    /* Initialize the ESP NVS layer */
     nvs_flash_init();
 
     /* Initialize driver */
