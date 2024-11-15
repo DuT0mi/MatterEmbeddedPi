@@ -1,11 +1,3 @@
-/*
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
 #include <esp_err.h>
 #include <esp_log.h>
 #include <nvs_flash.h>
@@ -24,6 +16,16 @@
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <esp_log.h>
+#include <esp_http_client.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <esp_system.h>
+
 static const char *TAG = "app_main";
 uint16_t light_endpoint_id = 0;
 
@@ -34,6 +36,14 @@ using namespace chip::app::Clusters;
 
 constexpr auto k_timeout_seconds = 300;
 
+constexpr char* host = "X"; // Your ip address <--> ifconfig
+constexpr int port = 8080; // Domoticz port number
+constexpr auto second = 1000;
+constexpr int esp32c6_0_idx = 1; // Corresponding idx under "Devices" on the web gui
+constexpr auto retry_queue_capacity = 10;
+
+QueueHandle_t retry_queue;
+
 #if CONFIG_ENABLE_ENCRYPTED_OTA
 extern const char decryption_key_start[] asm("_binary_esp_image_encryption_key_pem_start");
 extern const char decryption_key_end[] asm("_binary_esp_image_encryption_key_pem_end");
@@ -41,6 +51,10 @@ extern const char decryption_key_end[] asm("_binary_esp_image_encryption_key_pem
 static const char *s_decryption_key = decryption_key_start;
 static const uint16_t s_decryption_key_len = decryption_key_end - decryption_key_start;
 #endif // CONFIG_ENABLE_ENCRYPTED_OTA
+
+typedef struct {
+    int temperature;
+} temp_data_t;
 
 static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg) {
     switch (event->Type) {
@@ -80,10 +94,12 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg) {
                 chip::CommissioningWindowManager & commissionMgr = chip::Server::GetInstance().GetCommissioningWindowManager();
                 constexpr auto kTimeoutSeconds = chip::System::Clock::Seconds16(k_timeout_seconds);
                 if (!commissionMgr.IsCommissioningWindowOpen()) {
-                    CHIP_ERROR err = commissionMgr.OpenBasicCommissioningWindow(kTimeoutSeconds,
-                                                    chip::CommissioningWindowAdvertisement::kDnssdOnly);
-                    if (err != CHIP_NO_ERROR)
-                    {
+                    CHIP_ERROR err = commissionMgr.OpenBasicCommissioningWindow(
+                        kTimeoutSeconds,
+                        chip::CommissioningWindowAdvertisement::kDnssdOnly
+                        );
+
+                    if (err != CHIP_NO_ERROR) {
                         ESP_LOGE(TAG, "Failed to open commissioning window, err:%" CHIP_ERROR_FORMAT, err.Format());
                     }
                 }
@@ -130,7 +146,8 @@ static esp_err_t app_attribute_update_cb(
     uint32_t cluster_id,
     uint32_t attribute_id,
     esp_matter_attr_val_t *val,
-    void *priv_data ) {
+    void *priv_data
+    ) {
     esp_err_t err = ESP_OK;
 
     if (type == PRE_UPDATE) {
@@ -141,10 +158,98 @@ static esp_err_t app_attribute_update_cb(
     return err;
 }
 
+int get_random_temperature(int lower = 10, int upper = 20) {
+    return (rand() % (upper - lower + 1)) + lower;
+}
+
+void send_to_domoticz_task(void *pvParameters) {
+    esp_err_t err;
+    char url[256];
+
+    while (1) {
+        int temperature = get_random_temperature();
+        snprintf(url, sizeof(url), "http://%s:%d/json.htm?type=command&param=udevice&idx=%d&nvalue=0&svalue=%d", 
+                 host, port, esp32c6_0_idx, temperature);
+        
+        ESP_LOGI(TAG, "Sending temperature: %d to Domoticz", temperature);
+
+        esp_http_client_config_t config = {
+            .url = url,
+            .method = HTTP_METHOD_GET,
+        };
+        esp_http_client_handle_t client = esp_http_client_init(&config);
+
+        err = esp_http_client_perform(client);
+        if (err == ESP_OK) {
+            int status_code = esp_http_client_get_status_code(client);
+            if (status_code == 200) {
+                ESP_LOGI(TAG, "Data sent successfully to Domoticz");
+            } else {
+                ESP_LOGE(TAG, "Failed to send data, HTTP status code: %d", status_code);
+
+                xQueueSend(retry_queue, &temp_data, portMAX_DELAY);
+            }
+        } else {
+            ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+
+            xQueueSend(retry_queue, &temp_data, portMAX_DELAY);
+        }
+
+        esp_http_client_cleanup(client);
+
+        vTaskDelay(5 * second / portTICK_PERIOD_MS);
+    }
+}
+
+void retry_send_to_domoticz_task(void *pvParameters) {
+    esp_err_t err;
+    char url[256];
+    temp_data_t temp_data;
+
+    while (1) {
+        if (uxQueueMessagesWaiting(retry_queue) > 0) {
+            if (xQueueReceive(retry_queue, &temp_data, 0) == pdTRUE) {
+                ESP_LOGI(TAG, "Retrying to send temperature: %d to Domoticz", temp_data.temperature);
+
+                snprintf(url, sizeof(url), "http://%s:%d/json.htm?type=command&param=udevice&idx=%d&nvalue=0&svalue=%d", 
+                         host, port, esp32c6_0_idx, temp_data.temperature);
+
+                esp_http_client_config_t config = {
+                    .url = url,
+                    .method = HTTP_METHOD_GET,
+                };
+                esp_http_client_handle_t client = esp_http_client_init(&config);
+
+                err = esp_http_client_perform(client);
+                if (err == ESP_OK) {
+                    int status_code = esp_http_client_get_status_code(client);
+                    if (status_code == 200) {
+                        ESP_LOGI(TAG, "Data retried and sent successfully to Domoticz");
+                    } else {
+                        ESP_LOGE(TAG, "Failed to retry send data, HTTP status code: %d", status_code);
+
+                        xQueueSend(retry_queue, &temp_data, portMAX_DELAY);
+                    }
+                } else {
+                    ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+
+                    xQueueSend(retry_queue, &temp_data, portMAX_DELAY);
+                }
+
+                esp_http_client_cleanup(client);
+            }
+        }
+
+        vTaskDelay(1 * second / portTICK_PERIOD_MS);
+    }
+}
+
 extern "C" void app_main() {
     esp_err_t err = ESP_OK;
 
     nvs_flash_init();
+
+    retry_queue = xQueueCreate(retry_queue_capacity, sizeof(temp_data_t));
 
     app_driver_handle_t light_handle = app_driver_light_init();
     app_driver_handle_t button_handle = app_driver_button_init();
@@ -210,4 +315,7 @@ extern "C" void app_main() {
 #endif
     esp_matter::console::init();
 #endif
+
+    xTaskCreate(send_to_domoticz_task, "send_to_domoticz_task", 4096, NULL, 5, NULL);
+    xTaskCreate(retry_send_to_domoticz_task, "retry_send_to_domoticz_task", 4096, NULL, 5, NULL);
 }

@@ -64,7 +64,6 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg) {
 extern "C" void app_main() {
     esp_err_t err = ESP_OK;
 
-    /* Initialize the ESP NVS layer */
     nvs_flash_init();
 #if CONFIG_ENABLE_CHIP_SHELL
     esp_matter::console::diagnostics_register_commands();
@@ -88,7 +87,6 @@ extern "C" void app_main() {
     esp_rcp_update_config_t rcp_update_config = ESP_OPENTHREAD_RCP_UPDATE_CONFIG();
     openthread_init_br_rcp(&rcp_update_config);
 #endif
-    /* Set OpenThread platform config */
     esp_openthread_platform_config_t config = {
         .radio_config = ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG(),
         .host_config = ESP_OPENTHREAD_DEFAULT_HOST_CONFIG(),
@@ -96,7 +94,6 @@ extern "C" void app_main() {
     };
     set_openthread_platform_config(&config);
 #endif // CONFIG_OPENTHREAD_BORDER_ROUTER
-    /* Matter start */
     err = esp_matter::start(app_event_cb);
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
 
